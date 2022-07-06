@@ -68,7 +68,7 @@
           <view class="address">{{ marker.name }}</view>
           <view
             >距离您距离：<text class="txt-red"
-              >{{ marker.distance | v }}米</text
+              >{{ marker.distance | v }}</text
             ></view
           >
           <view>详细地址：{{ marker.address }}</view>
@@ -144,7 +144,9 @@ export default {
   filters: {
     v(num) {
       if (!num || Number.isNaN(num)) return "--";
-      return num.toFixed();
+      if(num>1000) return `${(num/1000).toFixed(2)}km`;
+      return `${num.toFixed(2)}m`;
+      
     },
   },
   mounted() {
@@ -171,10 +173,13 @@ export default {
             location: { latitude, longitude },
             success: (res) => {
               const { district } = res.result.address_component || {};
-              const districtItem = districtList.find(
-                (item) => item.name === district
-              );
+              const districtItem = districtList.find((item) => item.name === district);
+              if(Object.keys(districtItem).length) {
               this.getList({ areaId: districtItem.id, latitude, longitude });
+              }else {
+                this.getList();
+              }
+
             },
             fail: (res) => {
               this.getList();
@@ -194,14 +199,23 @@ export default {
         latitude: this.latitude,
         longitude: this.longitude,
         queryType: 0,
-        areaId: 1,
         ...params,
       })
         .then((res) => {
+          const colors = {'1':'#bdbbbd','2':'#0dc947','3':'#fec952','4':'#f44336'}
           this.covers = res.data.map((item) => ({
             ...item,
             width: 30,
             height: 45,
+            callout:{
+              content:item.name,
+              padding:4,
+              borderRadius:4,
+              fontSize:14,
+              borderWidth:1,
+              borderColor:colors[item.status]||'#999',
+              color:colors[item.status]||'#666'
+            },
             iconPath: `/static/img/status${item.status}.png`,
           }));
           uni.hideLoading();
