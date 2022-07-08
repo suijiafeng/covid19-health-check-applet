@@ -24,21 +24,21 @@
       <cover-view class="header-bar-wrapper">
         <cover-view class="select-group">
           <cover-view class="select-items" @click="toSelectPage('1')">
-            <cover-view>{{ district.text }}</cover-view>
+            <cover-view>{{ district.text||'全市区' }}</cover-view>
             <cover-image
               src="/static/img/arrow-down.png"
               class="icon-triangle-down"
             />
           </cover-view>
           <cover-view class="select-items" @click="toSelectPage('2')">
-            <cover-view>{{ street.text }}</cover-view>
+            <cover-view>{{ street.text||'全部街道' }}</cover-view>
             <cover-image
               src="/static/img/arrow-down.png"
               class="icon-triangle-down"
             />
           </cover-view>
           <cover-view class="select-items" @click="toSelectPage('3')">
-            <cover-view>{{ userType.text }}</cover-view>
+            <cover-view>{{ userType.text||'全部类型' }}</cover-view>
             <cover-image
               src="/static/img/arrow-down.png"
               class="icon-triangle-down"
@@ -169,7 +169,9 @@ export default {
   methods: {
     getUserLocation() {
       // 获取用户当前坐标
-
+      // this.$store.commit("changeStreet", { text: "全部街道", value: "" });
+      // this.$store.commit("changeUserType", { text: "全部类别", value: 0 });
+      // this.$store.commit("changeDistrict", { text: "全市区", value: '' });
       uni.getLocation({
         type: "gcj02",
         altitude: true,
@@ -204,18 +206,12 @@ export default {
             },
             fail: (res) => {
               // 当用户未授权或无法获取用户当前位置坐标时
-              this.$store.commit("changeDistrict", {
-                text: districtList[0].name,
-                value: districtList[0].id,
-              });
               this.getList();
             },
           });
         },
       });
-      this.$store.commit("changeStreet", { text: "全部街道", value: "" });
-      this.$store.commit("changeUserType", { text: "全部类别", value: 0 });
-      this.$store.commit("changeDistrict", { text: "全市区", value: '' });
+      
     },
     customerChoose(district = "", street = "",userType="") {
       const districtItem =

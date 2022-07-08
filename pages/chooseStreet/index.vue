@@ -1,6 +1,6 @@
 <template>
   <view class="page-container">
-    <view class="label-header"> 街道办：{{ items.text }} </view>
+    <view class="label-header"> 街道办：{{ items.text||'' }} </view>
     <view class="chekcbox-group">
       <uni-data-checkbox
         mode="tag"

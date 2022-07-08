@@ -1,6 +1,6 @@
 <template>
   <view class="page-container">
-    <view class="label-header"> 服务类型：{{ items.text }} </view>
+    <view class="label-header"> 服务类型：{{ items.text ||''}} </view>
     <view class="chekcbox-group">
       <uni-data-checkbox
         mode="tag"
