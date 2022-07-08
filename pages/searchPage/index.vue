@@ -15,7 +15,7 @@
         </view>
       </view>
     </u-sticky>
-    <view>
+    <view style="padding-bottom:24rpx">
       <view class="info-card" v-for="(marker, index) in markers" :key="index">
         <view class="info-header">
          <text> {{marker.areaName}}/{{marker.streetName}}/{{marker.communityName}}
