@@ -215,7 +215,7 @@ export default {
       });
       this.$store.commit("changeStreet", { text: "全部街道", value: "" });
       this.$store.commit("changeUserType", { text: "全部类别", value: 0 });
-      this.$store.commit("changeStreet", { text: "全市区", value: 0 });
+      this.$store.commit("changeDistrict", { text: "全市区", value: '' });
     },
     customerChoose(district = "", street = "",userType="") {
       const districtItem =
