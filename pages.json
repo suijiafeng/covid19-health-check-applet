@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "pages/chooseType/index"
+		},
+		{
+			"path": "pages/searchPage/index"
 		}
 	],
 	"globalStyle": {

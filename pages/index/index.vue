@@ -22,23 +22,30 @@
       @markertap="markertap"
     >
       <cover-view class="header-bar-wrapper">
+        <cover-view class="search-adress" @click="goSearchPage">
+          <cover-image src="/static/img/icon_search.png" class="icon_search" />
+          <cover-view>
+               请输入核酸点关键词
+          </cover-view>
+        </cover-view>
+
         <cover-view class="select-group">
           <cover-view class="select-items" @click="toSelectPage('1')">
-            <cover-view>{{ district.text||'全市区' }}</cover-view>
+            <cover-view>{{ district.text || "全市区" }}</cover-view>
             <cover-image
               src="/static/img/arrow-down.png"
               class="icon-triangle-down"
             />
           </cover-view>
           <cover-view class="select-items" @click="toSelectPage('2')">
-            <cover-view>{{ street.text||'全部街道' }}</cover-view>
+            <cover-view>{{ street.text || "全部街道" }}</cover-view>
             <cover-image
               src="/static/img/arrow-down.png"
               class="icon-triangle-down"
             />
           </cover-view>
           <cover-view class="select-items" @click="toSelectPage('3')">
-            <cover-view>{{ userType.text||'全部类型' }}</cover-view>
+            <cover-view>{{ userType.text || "全部类型" }}</cover-view>
             <cover-image
               src="/static/img/arrow-down.png"
               class="icon-triangle-down"
@@ -163,7 +170,7 @@ export default {
       const districtName = this.district.text;
       const streetName = this.street.text;
       const typeName = this.userType.text;
-      this.customerChoose(districtName, streetName,typeName);
+      this.customerChoose(districtName, streetName, typeName);
     },
   },
   methods: {
@@ -211,14 +218,18 @@ export default {
           });
         },
       });
-      
     },
-    customerChoose(district = "", street = "",userType="") {
+    customerChoose(district = "", street = "", userType = "") {
       const districtItem =
         districtList.find((item) => item.name === district) || {};
       const streetItem = streetList.find((item) => item.name === street) || {};
-      const userTypeItem = queryTypeList.find((item) => item.name === userType) || {};
-      this.getList({ areaId: districtItem.id, streetId: streetItem.id,queryType: userTypeItem.id});
+      const userTypeItem =
+        queryTypeList.find((item) => item.name === userType) || {};
+      this.getList({
+        areaId: districtItem.id,
+        streetId: streetItem.id,
+        queryType: userTypeItem.id,
+      });
     },
     getList(params = {}) {
       // 获取核酸检测场所列表
@@ -304,13 +315,17 @@ export default {
       // #endif
     },
     handleClick() {
-      console.log("eee", this.marker);
       const { latitude, longitude, address, streetName } = this.marker;
       uni.openLocation({
         latitude: +latitude,
         longitude: +longitude,
         name: streetName,
         address,
+      });
+    },
+    goSearchPage() {
+      uni.navigateTo({
+        url: "/pages/searchPage/index",
       });
     },
     toSelectPage(type) {
@@ -335,6 +350,25 @@ export default {
 </script>
 
 <style lang="scss">
+.search-adress {
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 12rpx 24rpx;
+  margin: 12rpx;
+  border-radius: 50rpx;
+  color: #999999;
+  font-size: 26rpx;
+}
+.icon_search {
+  width: 48rpx;
+  height: 48rpx;
+}
+.uni-input {
+  color: #666;
+  font-size: 28rpx;
+  width: 100%;
+}
 .content {
   position: relative;
 }
