@@ -24,21 +24,21 @@
       <cover-view class="header-bar-wrapper">
         <cover-view class="select-group">
           <cover-view class="select-items" @click="toSelectPage('1')">
-            <cover-view>全市区</cover-view>
+            <cover-view>{{ district.text }}</cover-view>
             <cover-image
               src="/static/img/arrow-down.png"
               class="icon-triangle-down"
             />
           </cover-view>
           <cover-view class="select-items" @click="toSelectPage('2')">
-            <cover-view>全部街道</cover-view>
+            <cover-view>{{ street.text }}</cover-view>
             <cover-image
               src="/static/img/arrow-down.png"
               class="icon-triangle-down"
             />
           </cover-view>
           <cover-view class="select-items" @click="toSelectPage('3')">
-            <cover-view>全部类别</cover-view>
+            <cover-view>{{ userType.text }}</cover-view>
             <cover-image
               src="/static/img/arrow-down.png"
               class="icon-triangle-down"
@@ -67,9 +67,9 @@
         <scroll-view scroll-y style="max-height: 350rpx">
           <view class="address">{{ marker.name }}</view>
           <view
-            >距离您距离：<text class="txt-red"
-              >{{ marker.distance | v }}</text
-            ></view
+            >距离您距离：<text class="txt-red">{{
+              marker.distance | v
+            }}</text></view
           >
           <view>详细地址：{{ marker.address }}</view>
           <view
@@ -100,11 +100,12 @@
 
 <script>
 import { request } from "@/api/index";
-import { districtList, streetList } from "@/common/static_json";
+import { districtList, streetList, queryTypeList } from "@/common/static_json";
 const QQMapWX = require("@/common/qqmap-wx-jssdk");
 const qqmapsdk = new QQMapWX({ key: "4BABZ-UP5WQ-KXY5P-GHEHP-YANO5-Q2BH2" });
 const pageWidth = uni.getSystemInfoSync().windowWidth;
 const pageHeight = uni.getSystemInfoSync().windowHeight;
+import { mapState } from "vuex";
 export default {
   data() {
     return {
@@ -121,43 +122,54 @@ export default {
       marker: {},
     };
   },
-   onShareAppMessage(res) {
+  onShareAppMessage(res) {
     return {
-      title: '微信好友及微信群分享功能测试',
-      path: '/pages/index/index'
-    }
+      title: "深圳核酸采样点地图",
+      path: "/pages/index/index",
+    };
   },
   onShareTimeline() {
     return {
-      title: '朋友圈分享功能测试',
-      path: '/pages/index/index'
-    }
+      title: "深圳核酸采样点地图",
+      path: "/pages/index/index",
+    };
   },
   computed: {
     showNoticeBar() {
       return this.noticeList.length && this.showNotice;
     },
-  },
-  onLoad() {
-    // 实例化API核心类
+    userSelect() {
+      const { street, district, userType } = this;
+      return { street, district, userType };
+    },
+    ...mapState(["street", "district", "userType"]),
   },
   filters: {
     v(num) {
       if (!num || Number.isNaN(num)) return "--";
-      if(num>1000) return `${(num/1000).toFixed(2)}km`;
+      if (num > 1000) return `${(num / 1000).toFixed(2)}km`;
       return `${num.toFixed(2)}m`;
-      
     },
   },
+
   mounted() {
     // this.getDistrict();
     // this.getStreetOffice();
     this.getNoticeList();
     this.getUserLocation();
   },
+  watch: {
+    userSelect() {
+      const districtName = this.district.text;
+      const streetName = this.street.text;
+      const typeName = this.userType.text;
+      this.customerChoose(districtName, streetName,typeName);
+    },
+  },
   methods: {
     getUserLocation() {
       // 获取用户当前坐标
+
       uni.getLocation({
         type: "gcj02",
         altitude: true,
@@ -173,20 +185,44 @@ export default {
             location: { latitude, longitude },
             success: (res) => {
               const { district } = res.result.address_component || {};
-              const districtItem = districtList.find((item) => item.name === district);
-              if(Object.keys(districtItem).length) {
-              this.getList({ areaId: districtItem.id, latitude, longitude });
-              }else {
-                this.getList();
+              const districtItem =
+                districtList.find((item) => item.name === district) || {};
+              if (Object.keys(districtItem).length) {
+                // 用户当前地址能够匹配到后端数据时
+                this.$store.commit("changeDistrict", {
+                  text: districtItem.name,
+                  value: districtItem.id,
+                });
+              } else {
+                // 当用户当前位置超出后台数据匹配范围
+                this.$store.commit("changeDistrict", {
+                  text: districtList[0].name,
+                  value: districtList[0].id,
+                });
               }
-
+              this.getList({ areaId: districtItem.id, latitude, longitude });
             },
             fail: (res) => {
+              // 当用户未授权或无法获取用户当前位置坐标时
+              this.$store.commit("changeDistrict", {
+                text: districtList[0].name,
+                value: districtList[0].id,
+              });
               this.getList();
             },
           });
         },
       });
+      this.$store.commit("changeStreet", { text: "全部街道", value: "" });
+      this.$store.commit("changeUserType", { text: "全部类别", value: 0 });
+      this.$store.commit("changeStreet", { text: "全市区", value: 0 });
+    },
+    customerChoose(district = "", street = "",userType="") {
+      const districtItem =
+        districtList.find((item) => item.name === district) || {};
+      const streetItem = streetList.find((item) => item.name === street) || {};
+      const userTypeItem = queryTypeList.find((item) => item.name === userType) || {};
+      this.getList({ areaId: districtItem.id, streetId: streetItem.id,queryType: userTypeItem.id});
     },
     getList(params = {}) {
       // 获取核酸检测场所列表
@@ -202,19 +238,24 @@ export default {
         ...params,
       })
         .then((res) => {
-          const colors = {'1':'#bdbbbd','2':'#0dc947','3':'#fec952','4':'#f44336'}
+          const colors = {
+            1: "#bdbbbd",
+            2: "#0dc947",
+            3: "#fec952",
+            4: "#f44336",
+          };
           this.covers = res.data.map((item) => ({
             ...item,
             width: 30,
             height: 45,
-            callout:{
-              content:item.name,
-              padding:4,
-              borderRadius:4,
-              fontSize:14,
-              borderWidth:1,
-              borderColor:colors[item.status]||'#999',
-              color:colors[item.status]||'#666'
+            callout: {
+              content: item.name,
+              padding: 4,
+              borderRadius: 4,
+              fontSize: 14,
+              borderWidth: 1,
+              bgColor: colors[item.status] || "#999",
+              color: "#fff",
             },
             iconPath: `/static/img/status${item.status}.png`,
           }));
@@ -267,9 +308,14 @@ export default {
       // #endif
     },
     handleClick() {
-      console.log('eee',this.marker)
-      const { latitude, longitude,address,streetName } = this.marker;
-      uni.openLocation({ latitude:+latitude, longitude:+longitude,name:streetName, address });
+      console.log("eee", this.marker);
+      const { latitude, longitude, address, streetName } = this.marker;
+      uni.openLocation({
+        latitude: +latitude,
+        longitude: +longitude,
+        name: streetName,
+        address,
+      });
     },
     toSelectPage(type) {
       if (type === "1") {

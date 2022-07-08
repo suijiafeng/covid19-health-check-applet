@@ -1,4 +1,5 @@
 export const districtList = [
+  { "createTime": 1645627202000, "id": '', "name": "全市区", "updateTime": 1645627202000 },
   { "createTime": 1645627202000, "id": 1, "name": "福田区", "updateTime": 1645627202000 },
   { "createTime": 1645627286000, "id": 138, "name": "罗湖区", "updateTime": 1645627286000 },
   { "createTime": 1645627247000, "id": 136, "name": "南山区", "updateTime": 1645627247000 },
@@ -12,6 +13,12 @@ export const districtList = [
   { "createTime": 1645627194000, "id": 130, "name": "深汕特别合作区", "updateTime": 1645627194000 }]
 
 export const streetList = [
+  {
+    "createTime": 1645627170000,
+    "id": '',
+    "name": "全部街道",
+    "updateTime": 1645627170000
+  },
   {
     "createTime": 1645627170000,
     "id": 818,
@@ -498,4 +505,11 @@ export const streetList = [
     "name": "福田保税区",
     "updateTime": 1649344244000
   }
+]
+
+export const queryTypeList = [
+  {name:'全部类型',id:0},
+  {name:'大数据专项',id:1},
+  {name:'黄码人员',id:2},
+  {name:'夜间核酸',id:3},
 ]
