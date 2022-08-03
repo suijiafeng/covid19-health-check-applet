@@ -213,19 +213,22 @@ export default {
                   text: districtList[0].name,
                   value: districtList[0].id,
                 });
-                this.showModal = true
+              this.showModal = true
               }
-
+              this.resetChoose()
               this.getList({ areaId: districtItem.id, latitude, longitude });
             },
             fail: (res) => {
-              this.showModal = true
               // 当用户未授权或无法获取用户当前位置坐标时
               this.getList();
             },
           });
         },
       });
+    },
+    resetChoose(){
+      this.$store.commit('changeStreet',{text:'全部街道',value:''})
+      this.$store.commit('changeUserType',{text:'全部类型',value:''})      
     },
     customerChoose(district = "", street = "", userType = "") {
       const districtItem =
@@ -437,7 +440,6 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 16rpx 0;
   // color:#fff;
   .select-items {
     display: flex;
