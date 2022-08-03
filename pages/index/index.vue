@@ -257,7 +257,7 @@ export default {
         longitude: this.longitude,
         queryType: 0,
         ...params,
-      },{'Content-Type':'application/x-www-form-urlencoded'})
+      })
         .then((res) => {
           const colors = {
             1: "#bdbbbd",

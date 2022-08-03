@@ -6,7 +6,9 @@ const config = {
   // #endif
 }
 
-export const request = (url, params = {}, headers = {}) => {
+export const request = (url, params = {}, headers = {
+  'Content-Type': 'application/x-www-form-urlencoded'
+}) => {
   return new Promise((resove, reject) => {
     uni.request({
       url: config.feedbackUrl + url,
