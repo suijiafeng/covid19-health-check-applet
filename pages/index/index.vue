@@ -101,7 +101,11 @@
         </view>
       </view>
       <view class="popup-footer"></view>
+    
     </u-popup>
+      <u-modal :show="showModal" @confirm="showModal=false" >
+        <rich-text nodes="服务仅适用于深圳地区，感谢您的使用。"></rich-text>
+		</u-modal>
   </view>
 </template>
 
@@ -126,6 +130,7 @@ export default {
       scale: 14,
       show: false,
       showNotice: true,
+      showModal:false,
       marker: {},
     };
   },
@@ -208,10 +213,13 @@ export default {
                   text: districtList[0].name,
                   value: districtList[0].id,
                 });
+                this.showModal = true
               }
+
               this.getList({ areaId: districtItem.id, latitude, longitude });
             },
             fail: (res) => {
+              this.showModal = true
               // 当用户未授权或无法获取用户当前位置坐标时
               this.getList();
             },
@@ -236,6 +244,9 @@ export default {
       uni.showLoading({
         title: "加载中",
       });
+      Object.keys(params).forEach((key=>{
+        !params[key] && delete params[key]
+      }))
       return request("/ilhapi/wjw/checkpoint/list", {
         page: 1,
         pageSize: 10,
@@ -243,7 +254,7 @@ export default {
         longitude: this.longitude,
         queryType: 0,
         ...params,
-      })
+      },{'Content-Type':'application/x-www-form-urlencoded'})
         .then((res) => {
           const colors = {
             1: "#bdbbbd",
