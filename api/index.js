@@ -1,8 +1,8 @@
 const config = {
-  httpUrl: "https://szwj.borycloud.com",
-  feedbackUrl: 'https://szwj.borycloud.com',
+  httpUrl: "https://hsdyjc.newhealth.com.cn",
+  feedbackUrl: 'https://hsdyjc.newhealth.com.cn',
   // #ifdef H5
-  feedbackUrl: '' // 开发环境
+  feedbackUrl: '/ilhapi' // 开发环境
   // #endif
 }
 
