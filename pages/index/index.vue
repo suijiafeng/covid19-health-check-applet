@@ -4,48 +4,33 @@
       <view class="notice-bar-content">
         {{ noticeList }}
       </view>
-      <view class="notice-close" @click="showNotice = false">X</view>
+      <view class="notice-close" @click="showNotice = false">
+        <u-icon name="close" color="#999" size="24"></u-icon>
+      </view>
     </view>
     <map
       id="amap"
+      class="map-container"
+      v-if="mapReady"
       show-location
       :scale="scale"
-      :style="[
-        {
-          width: '750rpx',
-          height: showNoticeBar ? `${pageHeight - 30}px` : `${pageHeight}px`,
-        },
-      ]"
+      :style="mapStyle"
       :latitude="latitude"
       :longitude="longitude"
       :markers="covers"
       @markertap="markertap"
     >
       <cover-view class="header-bar-wrapper">
-        <cover-view class="search-adress" @click="goSearchPage">
+        <cover-view class="search-address" @click="goSearchPage">
           <cover-image src="/static/img/icon_search.png" class="icon_search" />
           <cover-view>
-               请输入核酸点关键词
+            请输入核酸点关键词
           </cover-view>
         </cover-view>
 
         <cover-view class="select-group">
-          <cover-view class="select-items" @click="toSelectPage('1')">
-            <cover-view>{{ district.text || "全市区" }}</cover-view>
-            <cover-image
-              src="/static/img/arrow-down.png"
-              class="icon-triangle-down"
-            />
-          </cover-view>
-          <cover-view class="select-items" @click="toSelectPage('2')">
-            <cover-view>{{ street.text || "全部街道" }}</cover-view>
-            <cover-image
-              src="/static/img/arrow-down.png"
-              class="icon-triangle-down"
-            />
-          </cover-view>
-          <cover-view class="select-items" @click="toSelectPage('3')">
-            <cover-view>{{ userType.text || "全部类型" }}</cover-view>
+          <cover-view v-for="(item, index) in selectItems" :key="index" class="select-items" @click="toSelectPage(item.type)">
+            <cover-view>{{ item.text }}</cover-view>
             <cover-image
               src="/static/img/arrow-down.png"
               class="icon-triangle-down"
@@ -60,35 +45,45 @@
       ></cover-image>
     </map>
     <u-popup
-      :show="show"
+      v-model:show="show"
       :round="8"
-      @close="show = false"
-      :overlay="false"
+      :overlay="true"
       bgColor="#f6f6f6"
     >
-      <view class="popup-header"
-        ><view class="popup-title">核酸检测采集点</view>
-        <u-icon name="close" size="20" @click="show = false"></u-icon
-      ></view>
+      <view class="popup-header">
+        <view class="popup-title">核酸检测采集点</view>
+        <u-icon name="close" size="20" @click="closePopup"></u-icon>
+      </view>
       <view class="popup-content">
         <scroll-view scroll-y style="max-height: 350rpx">
-          <view class="address">{{ marker.name }}</view>
-          <view
-            >距离您距离：<text class="txt-red">{{
-              marker.distance | v
-            }}</text></view
-          >
-          <view>详细地址：{{ marker.address }}</view>
-          <view
-            >拥挤程度：
-            <text class="status bg-1" v-if="marker.status === 1">休息</text>
-            <text class="status bg-2" v-if="marker.status === 2">畅通</text>
-            <text class="status bg-3" v-if="marker.status === 3">忙碌</text>
-            <text class="status bg-4" v-if="marker.status === 4">拥挤</text>
+          <view class="info-item">
+            <text class="info-label">名称：</text>
+            <text class="info-value">{{ marker.name }}</text>
           </view>
-          <view>采样台数：{{ marker.workerNumber || 0 }}台</view>
-          <view>服务时间：{{ marker.serverTime }}</view>
-          <view>服务人群：{{ marker.serverPeople }}</view>
+          <view class="info-item">
+            <text class="info-label">距离：</text>
+            <text class="info-value txt-red">{{ formatDistance(marker.distance) }}</text>
+          </view>
+          <view class="info-item">
+            <text class="info-label">地址：</text>
+            <text class="info-value">{{ marker.address }}</text>
+          </view>
+          <view class="info-item">
+            <text class="info-label">拥挤程度：</text>
+            <text :class="['status', `bg-${marker.status}`]">{{ getStatusText(marker.status) }}</text>
+          </view>
+          <view class="info-item">
+            <text class="info-label">采样台数：</text>
+            <text class="info-value">{{ marker.workerNumber || 0 }}台</text>
+          </view>
+          <view class="info-item">
+            <text class="info-label">服务时间：</text>
+            <text class="info-value">{{ marker.serverTime }}</text>
+          </view>
+          <view class="info-item">
+            <text class="info-label">服务人群：</text>
+            <text class="info-value">{{ marker.serverPeople }}</text>
+          </view>
         </scroll-view>
         <view class="go-there">
           <u-button
@@ -100,29 +95,32 @@
           ></u-button>
         </view>
       </view>
-      <view class="popup-footer"></view>
-    
     </u-popup>
-      <u-modal :show="showModal" @confirm="showModal=false" >
-        <rich-text nodes="服务仅适用于深圳地区，感谢您的使用。"></rich-text>
-		</u-modal>
+    <u-modal :show="showModal" @confirm="showModal = false">
+      <rich-text nodes="服务仅适用于深圳地区，感谢您的使用。"></rich-text>
+    </u-modal>
   </view>
 </template>
 
 <script>
+import { mapState, mapMutations } from "vuex";
 import { request } from "@/api/index";
 import { districtList, streetList, queryTypeList } from "@/common/static_json";
+
+// 条件编译，根据平台引入不同的地图SDK
+// #ifdef H5
+import QQMapWX from "@/common/qqmap-wx-jssdk";
+const qqmapsdk = new QQMapWX({ key: "4BABZ-UP5WQ-KXY5P-GHEHP-YANO5-Q2BH2" });
+// #endif
+
+// #ifdef MP-WEIXIN
 const QQMapWX = require("@/common/qqmap-wx-jssdk");
 const qqmapsdk = new QQMapWX({ key: "4BABZ-UP5WQ-KXY5P-GHEHP-YANO5-Q2BH2" });
-const pageWidth = uni.getSystemInfoSync().windowWidth;
-const pageHeight = uni.getSystemInfoSync().windowHeight;
-import { mapState } from "vuex";
+// #endif
+
 export default {
   data() {
     return {
-      streetList,
-      districtList,
-      pageHeight,
       latitude: 22.554597,
       longitude: 113.953881,
       covers: [],
@@ -130,204 +128,251 @@ export default {
       scale: 14,
       show: false,
       showNotice: true,
-      showModal:false,
+      showModal: false,
       marker: {},
-    };
-  },
-  onShareAppMessage(res) {
-    return {
-      title: "深圳核酸采样点地图",
-      path: "/pages/index/index",
-    };
-  },
-  onShareTimeline() {
-    return {
-      title: "深圳核酸采样点地图",
-      path: "/pages/index/index",
+      pageHeight: uni.getSystemInfoSync().windowHeight,
+      mapReady: false,
     };
   },
   computed: {
+    ...mapState(["street", "district", "userType"]),
     showNoticeBar() {
       return this.noticeList.length && this.showNotice;
     },
-    userSelect() {
-      const { street, district, userType } = this;
-      return { street, district, userType };
+    mapStyle() {
+      return [{
+        width: '750rpx',
+        height: this.showNoticeBar ? `${this.pageHeight - 30}px` : `${this.pageHeight}px`,
+      }];
     },
-    ...mapState(["street", "district", "userType"]),
-  },
-  filters: {
-    v(num) {
-      if (!num || Number.isNaN(num)) return "--";
-      if (num > 1000) return `${(num / 1000).toFixed(2)}km`;
-      return `${num.toFixed(2)}m`;
+    selectItems() {
+      return [
+        { type: '1', text: this.district.text || "全市区" },
+        { type: '2', text: this.street.text || "全部街道" },
+        { type: '3', text: this.userType.text || "全部类型" },
+      ];
     },
-  },
-
-  mounted() {
-    // this.getDistrict();
-    // this.getStreetOffice();
-    this.getNoticeList();
-    this.getUserLocation();
   },
   watch: {
-    userSelect() {
-      const districtName = this.district.text;
-      const streetName = this.street.text;
-      const typeName = this.userType.text;
-      this.customerChoose(districtName, streetName, typeName);
-    },
+    district: 'handleUserSelectChange',
+    street: 'handleUserSelectChange',
+    userType: 'handleUserSelectChange',
+  },
+  async mounted() {
+    await this.initializeComponent();
   },
   methods: {
+    ...mapMutations(['changeDistrict', 'changeStreet', 'changeUserType']),
+    
+    async initializeComponent() {
+      try {
+        await this.getNoticeList();
+        await this.getUserLocation();
+        this.mapReady = true;
+      } catch (error) {
+        console.error('初始化失败:', error);
+        uni.showToast({
+          title: '初始化失败，请重试',
+          icon: 'none'
+        });
+      }
+    },
+
     getUserLocation() {
-      // 获取用户当前坐标
-      // this.$store.commit("changeStreet", { text: "全部街道", value: "" });
-      // this.$store.commit("changeUserType", { text: "全部类别", value: 0 });
-      // this.$store.commit("changeDistrict", { text: "全市区", value: '' });
-      uni.getLocation({
-        type: "gcj02",
-        altitude: true,
-        geocode: true,
-        isHighAccuracy: true,
-        success: (res) => {
-          const latitude = res.latitude;
-          const longitude = res.longitude;
-          this.latitude = latitude;
-          this.longitude = longitude;
-          // 判断用户的位置区域
-          qqmapsdk.reverseGeocoder({
-            location: { latitude, longitude },
-            success: (res) => {
-              const { district } = res.result.address_component || {};
-              const districtItem =
-                districtList.find((item) => item.name === district) || {};
-              if (Object.keys(districtItem).length) {
-                // 用户当前地址能够匹配到后端数据时
-                this.$store.commit("changeDistrict", {
-                  text: districtItem.name,
-                  value: districtItem.id,
-                });
-              } else {
-                // 当用户当前位置超出后台数据匹配范围
-                this.$store.commit("changeDistrict", {
-                  text: districtList[0].name,
-                  value: districtList[0].id,
-                });
-              this.showModal = true
-              }
-              this.resetChoose()
-              this.getList({ areaId: districtItem.id, latitude, longitude });
-            },
-            fail: (res) => {
-              // 当用户未授权或无法获取用户当前位置坐标时
-              this.getList();
-            },
-          });
-        },
+      return new Promise((resolve, reject) => {
+        uni.getLocation({
+          type: "gcj02",
+          isHighAccuracy: true,
+          success: (res) => {
+            this.latitude = res.latitude;
+            this.longitude = res.longitude;
+            this.reverseGeocode().then(resolve).catch(reject);
+          },
+          fail: (error) => {
+            console.error('获取位置失败:', error);
+            uni.showToast({
+              title: '获取位置失败，使用默认位置',
+              icon: 'none'
+            });
+            this.getList().then(resolve).catch(reject);
+          }
+        });
       });
     },
-    resetChoose(){
-      this.$store.commit('changeStreet',{text:'全部街道',value:''})
-      this.$store.commit('changeUserType',{text:'全部类型',value:''})      
+
+    reverseGeocode() {
+      return new Promise((resolve, reject) => {
+        qqmapsdk.reverseGeocoder({
+          location: { latitude: this.latitude, longitude: this.longitude },
+          success: (res) => {
+            this.handleGeocodeSuccess(res);
+            resolve();
+          },
+          fail: (error) => {
+            console.error('反地理编码失败:', error);
+            this.getList().then(resolve).catch(reject);
+          }
+        });
+      });
     },
+
+    handleGeocodeSuccess(res) {
+      const { district } = res.result.address_component || {};
+      const districtItem = this.findDistrict(district);
+      this.updateDistrict(districtItem);
+      this.resetChoose();
+      this.getList({ areaId: districtItem.id, latitude: this.latitude, longitude: this.longitude });
+    },
+
+    findDistrict(district) {
+      return districtList.find((item) => item.name === district) || districtList[0];
+    },
+
+    updateDistrict(districtItem) {
+      this.changeDistrict({
+        text: districtItem.name,
+        value: districtItem.id,
+      });
+    },
+
+    resetChoose() {
+      this.changeStreet({ text: '全部街道', value: '' });
+      this.changeUserType({ text: '全部类型', value: '' });
+    },
+
+    handleUserSelectChange() {
+      this.customerChoose(this.district.text, this.street.text, this.userType.text);
+    },
+
     customerChoose(district = "", street = "", userType = "") {
-      const districtItem =
-        districtList.find((item) => item.name === district) || {};
+      const params = this.buildChooseParams(district, street, userType);
+      this.getList(params);
+    },
+
+    buildChooseParams(district, street, userType) {
+      const districtItem = districtList.find((item) => item.name === district) || {};
       const streetItem = streetList.find((item) => item.name === street) || {};
-      const userTypeItem =
-        queryTypeList.find((item) => item.name === userType) || {};
-      this.getList({
+      const userTypeItem = queryTypeList.find((item) => item.name === userType) || {};
+      return {
         areaId: districtItem.id,
         streetId: streetItem.id,
         queryType: userTypeItem.id,
-      });
+      };
     },
-    getList(params = {}) {
-      // 获取核酸检测场所列表
-      uni.showLoading({
-        title: "加载中",
-      });
-      Object.keys(params).forEach((key=>{
-        !params[key] && delete params[key]
-      }))
-      return request("/ilhapi/wjw/checkpoint/list", {
+
+    async getList(params = {}) {
+      uni.showLoading({ title: "加载中" });
+      const queryParams = this.buildQueryParams(params);
+      try {
+        const res = await request("/ilhapi/wjw/checkpoint/list", queryParams);
+        this.handleListResponse(res);
+      } catch (err) {
+        this.handleListError(err);
+      } finally {
+        uni.hideLoading();
+      }
+    },
+
+    buildQueryParams(params) {
+      const baseParams = {
         page: 1,
         pageSize: 10,
         latitude: this.latitude,
         longitude: this.longitude,
         queryType: 0,
-        ...params,
-      })
-        .then((res) => {
-          const colors = {
-            1: "#bdbbbd",
-            2: "#0dc947",
-            3: "#fec952",
-            4: "#f44336",
-          };
-          this.covers = res.data.map((item) => ({
-            ...item,
-            width: 30,
-            height: 45,
-            callout: {
-              content: item.name,
-              padding: 4,
-              borderRadius: 4,
-              fontSize: 14,
-              borderWidth: 1,
-              bgColor: colors[item.status] || "#999",
-              color: "#fff",
-            },
-            iconPath: `/static/img/status${item.status}.png`,
-          }));
-          uni.hideLoading();
-        })
-        .catch((err) => {
-          uni.hideLoading();
-        });
+      };
+      return Object.fromEntries(
+        Object.entries({ ...baseParams, ...params })
+          .filter(([_, v]) => v != null)
+      );
     },
-    // getDistrict() {
-    //   // 获取深圳行政区列表
-    //   return request("/ilhapi/wjw/area/list").then((res) => {});
-    // },
-    // getStreetOffice() {
-    //   // 获取深圳街道办列表
-    //   return request("/ilhapi/wjw/street/list").then((res) => {});
-    // },
-    getNoticeList() {
-      // 获取通知列表
-      return request("/ilhapi/wjw/tip/list").then((res) => {
-        const noticeStr = res.data.map(
-          (item, index) => `${item.title}：${item.content}`
-        );
-        this.noticeList = noticeStr.join();
+
+    handleListResponse(res) {
+      this.covers = res.data.map(this.formatMarker);
+    },
+
+    formatMarker(item) {
+      const colors = {
+        1: "#bdbbbd",
+        2: "#0dc947",
+        3: "#fec952",
+        4: "#f44336",
+      };
+      return {
+        ...item,
+        width: 30,
+        height: 45,
+        callout: {
+          content: item.name,
+          padding: 4,
+          borderRadius: 4,
+          fontSize: 14,
+          borderWidth: 1,
+          bgColor: colors[item.status] || "#999",
+          color: "#fff",
+        },
+        iconPath: `/static/img/status${item.status}.png`,
+      };
+    },
+
+    handleListError(err) {
+      console.error('获取列表失败:', err);
+      uni.showToast({
+        title: '获取列表失败，请稍后重试',
+        icon: 'none'
       });
     },
+
+    async getNoticeList() {
+      try {
+        const res = await request("/ilhapi/wjw/tip/list");
+        this.handleNoticeResponse(res);
+      } catch (err) {
+        this.handleNoticeError(err);
+      }
+    },
+
+    handleNoticeResponse(res) {
+      this.noticeList = res.data?.map((item) => `${item.title}：${item.content}`).join();
+    },
+
+    handleNoticeError(err) {
+      console.error('获取通知失败:', err);
+    },
+
     onControltap() {
-      const { longitude, latitude } = this;
-      this.moveToLocation({ longitude, latitude });
+      this.moveToLocation();
       this.scale = 16;
     },
-    moveToLocation({ longitude, latitude }) {
+
+    moveToLocation({ latitude = this.latitude, longitude = this.longitude } = {}) {
       uni.createMapContext("amap", this).moveToLocation({
-        longitude,
         latitude,
+        longitude,
       });
     },
+
     markertap(e) {
       const markerId = e.detail.markerId;
-      const marker = this.covers.find((item) => item.id === markerId);
-      this.marker = marker || {};
-      console.log("markerId", markerId);
-      console.log("target", marker);
-      this.show = true;
-      // #ifndef H5
-      this.moveToLocation({
-        latitude: marker.latitude,
-        longitude: marker.longitude,
-      });
-      // #endif
+      const selectedMarker = this.covers.find((item) => item.id === markerId);
+      if (selectedMarker) {
+        this.marker = { ...selectedMarker };
+        this.show = true;
+        // #ifndef H5
+        this.moveToLocation({
+          latitude: selectedMarker.latitude,
+          longitude: selectedMarker.longitude
+        });
+        // #endif
+      } else {
+        console.error('未找到对应的标记点');
+      }
     },
+
+    closePopup() {
+      this.show = false;
+    },
+
     handleClick() {
       const { latitude, longitude, address, streetName } = this.marker;
       uni.openLocation({
@@ -337,34 +382,44 @@ export default {
         address,
       });
     },
+
     goSearchPage() {
       uni.navigateTo({
         url: "/pages/searchPage/index",
       });
     },
+
     toSelectPage(type) {
-      if (type === "1") {
-        uni.navigateTo({
-          url: "/pages/chooseArea/index",
-        });
-      }
-      if (type === "2") {
-        uni.navigateTo({
-          url: "/pages/chooseStreet/index",
-        });
-      }
-      if (type === "3") {
-        uni.navigateTo({
-          url: "/pages/chooseType/index",
-        });
-      }
+      const pages = {
+        '1': "/pages/chooseArea/index",
+        '2': "/pages/chooseStreet/index",
+        '3': "/pages/chooseType/index",
+      };
+      uni.navigateTo({
+        url: pages[type],
+      });
+    },
+
+    formatDistance(distance) {
+      if (!distance || isNaN(distance)) return "--";
+      return distance > 1000 ? `${(distance / 1000).toFixed(2)}km` : `${distance.toFixed(2)}m`;
+    },
+
+    getStatusText(status) {
+      const statusMap = {
+        1: "休息",
+        2: "畅通",
+        3: "忙碌",
+        4: "拥挤",
+      };
+      return statusMap[status] || "";
     },
   },
 };
 </script>
 
 <style lang="scss">
-.search-adress {
+.search-address {
   display: flex;
   align-items: center;
   background-color: rgba(255, 255, 255, 0.9);
@@ -385,11 +440,17 @@ export default {
 }
 .content {
   position: relative;
+  height: 100vh; /* 确保内容区域占满整个屏幕 */
+  overflow: hidden; /* 隐藏溢出内容 */
+}
+.map-container {
+  width: 100%;
+  height: 100%; /* 确保地图占满整个内容区域 */
 }
 .cover-btn {
   position: absolute;
-  bottom: 61.8%;
-  right: 20rpx;
+  bottom: 10%;
+  right: 10rpx;
   width: 100rpx;
   height: 100rpx;
 }
@@ -434,8 +495,7 @@ export default {
     color: red;
   }
 }
-.popup-footer {
-}
+
 .select-group {
   display: flex;
   justify-content: space-between;
